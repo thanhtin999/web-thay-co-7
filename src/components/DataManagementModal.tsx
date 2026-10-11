@@ -1,12 +1,13 @@
 import React, { useRef } from 'react';
 import { Download, Upload, RotateCcw, Trash2, Volume2, VolumeX, X, Database, ShieldCheck } from 'lucide-react';
-import { AppData } from '../types';
+import { AppData, UserAccount } from '../types';
 import { exportAppDataToFile, importAppDataFromFile } from '../services/storage';
 
 interface DataManagementModalProps {
   isOpen: boolean;
   onClose: () => void;
   data: AppData;
+  currentUser?: UserAccount | null;
   onUpdateData: (newData: AppData) => void;
   onResetSample: () => void;
   onClearData: () => void;
@@ -17,6 +18,7 @@ export const DataManagementModal: React.FC<DataManagementModalProps> = ({
   isOpen,
   onClose,
   data,
+  currentUser,
   onUpdateData,
   onResetSample,
   onClearData,
@@ -27,8 +29,8 @@ export const DataManagementModal: React.FC<DataManagementModalProps> = ({
   if (!isOpen) return null;
 
   const handleExport = () => {
-    exportAppDataToFile(data);
-    onNotify('success', 'Đã xuất dữ liệu thành công', 'Tệp tin JSON đã được tải về thiết bị của thầy.');
+    exportAppDataToFile(data, currentUser?.fullName);
+    onNotify('success', 'Đã xuất dữ liệu thành công', 'Tệp tin JSON đã được tải về thiết bị của quý Thầy/Cô.');
   };
 
   const handleImportClick = () => {

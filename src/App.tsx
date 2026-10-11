@@ -13,7 +13,8 @@ import {
   LearningTask,
   GradeEntry,
   StudentComment,
-  ActivityLog
+  ActivityLog,
+  UserAccount
 } from './types';
 import {
   loadAppData,
@@ -22,6 +23,11 @@ import {
   clearAppData,
   playChime
 } from './services/storage';
+import {
+  getCurrentUser,
+  logoutUser,
+  initializeAccounts
+} from './services/auth';
 
 // Modals & Layout
 import { Header } from './components/Header';
@@ -30,6 +36,8 @@ import { ToastContainer, ToastMessage } from './components/Toast';
 import { ConfirmModal } from './components/ConfirmModal';
 import { DataManagementModal } from './components/DataManagementModal';
 import { QuickSearchModal } from './components/QuickSearchModal';
+import { AuthScreen } from './components/AuthScreen';
+import { UserProfileModal } from './components/UserProfileModal';
 
 // Views
 import { OverviewView } from './components/OverviewView';
@@ -43,10 +51,26 @@ import { CommentsView } from './components/CommentsView';
 import { StatsView } from './components/StatsView';
 
 export default function App() {
-  // Central Application State
-  const [data, setData] = useState<AppData>(() => loadAppData());
+  // Authentication State
+  const [currentUser, setCurrentUser] = useState<UserAccount | null>(() => getCurrentUser());
+  const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
+
+  // Central Application State (scoped to logged in teacher)
+  const [data, setData] = useState<AppData>(() => loadAppData(getCurrentUser()?.username));
   const [currentTab, setCurrentTab] = useState<NavTab>('overview');
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
+
+  // Initialize sample accounts if empty
+  useEffect(() => {
+    initializeAccounts();
+  }, []);
+
+  // Reload data whenever user changes
+  useEffect(() => {
+    if (currentUser) {
+      setData(loadAppData(currentUser.username));
+    }
+  }, [currentUser?.username]);
 
   // Transient drill-down filters (e.g. filtering students when jumping from classes/overview)
   const [subFilter, setSubFilter] = useState<string | undefined>(undefined);
@@ -75,8 +99,10 @@ export default function App() {
 
   // Synchronize state with LocalStorage whenever data changes
   useEffect(() => {
-    saveAppData(data);
-  }, [data]);
+    if (currentUser) {
+      saveAppData(data, currentUser.username);
+    }
+  }, [data, currentUser]);
 
   // Keyboard shortcut: Ctrl+K or Cmd+K to trigger Quick Search
   useEffect(() => {
@@ -502,6 +528,33 @@ export default function App() {
   };
 
   // ----------------------------------------------------
+  // Authentication & Profile Handlers
+  // ----------------------------------------------------
+  const handleAuthSuccess = (user: UserAccount, message: string) => {
+    setCurrentUser(user);
+    setData(loadAppData(user.username));
+    notify('success', 'Đăng nhập thành công', message);
+  };
+
+  const handleRequestLogout = () => {
+    setConfirmModal({
+      isOpen: true,
+      title: 'Đăng xuất khỏi hệ thống?',
+      message: `Thầy/Cô ${currentUser?.fullName || ''} có chắc chắn muốn đăng xuất? Dữ liệu của tài khoản đã được bảo lưu an toàn trên máy.`,
+      isDestructive: false,
+      onConfirm: () => {
+        logoutUser();
+        setCurrentUser(null);
+        notify('info', 'Đã đăng xuất', 'Phiên làm việc đã kết thúc an toàn. Hẹn gặp lại Thầy/Cô!');
+      },
+    });
+  };
+
+  const handleUserUpdated = (updatedUser: UserAccount) => {
+    setCurrentUser(updatedUser);
+  };
+
+  // ----------------------------------------------------
   // Data Backup / Restore Handlers
   // ----------------------------------------------------
   const handleResetData = () => {
@@ -509,10 +562,10 @@ export default function App() {
       isOpen: true,
       title: 'Khôi phục dữ liệu mẫu?',
       message:
-        'Toàn bộ dữ liệu hiện tại sẽ được thay thế bằng dữ liệu mẫu ban đầu của Thầy Dương Thành Tín. Thầy có muốn tiếp tục?',
+        'Toàn bộ dữ liệu hiện tại sẽ được thay thế bằng dữ liệu mẫu ban đầu. Thầy/Cô có muốn tiếp tục?',
       isDestructive: false,
       onConfirm: () => {
-        const restored = resetAppData();
+        const restored = resetAppData(currentUser?.username);
         setData(restored);
         notify(
           'success',
@@ -528,12 +581,12 @@ export default function App() {
       isOpen: true,
       title: 'Xóa sạch toàn bộ dữ liệu?',
       message:
-        'Hành động này sẽ xóa toàn bộ danh sách lớp học, học sinh, bài học, nhiệm vụ và điểm số trên trình duyệt này. Thầy có thể xuất file JSON sao lưu trước nếu cần.',
+        'Hành động này sẽ xóa toàn bộ danh sách lớp học, học sinh, bài học, nhiệm vụ và điểm số của tài khoản này trên trình duyệt. Thầy/Cô có thể xuất file JSON sao lưu trước nếu cần.',
       isDestructive: true,
       onConfirm: () => {
-        const cleared = clearAppData();
+        const cleared = clearAppData(currentUser?.username);
         setData(cleared);
-        notify('warning', 'Đã xóa dữ liệu', 'Toàn bộ dữ liệu trên trình duyệt đã được đặt lại trống.');
+        notify('warning', 'Đã xóa dữ liệu', 'Toàn bộ dữ liệu của tài khoản đã được đặt lại trống.');
       },
     });
   };
@@ -629,15 +682,28 @@ export default function App() {
     }
   };
 
+  // If user is not authenticated, display the Auth Screen (Login / Register)
+  if (!currentUser) {
+    return (
+      <>
+        <AuthScreen onAuthSuccess={handleAuthSuccess} />
+        <ToastContainer toasts={toasts} onDismiss={dismissToast} />
+      </>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col text-slate-900 font-sans antialiased selection:bg-blue-100 selection:text-blue-900">
       {/* Top Application Header */}
       <Header
         data={data}
+        currentUser={currentUser}
         onOpenSearch={() => setIsSearchOpen(true)}
         onOpenDataModal={() => setIsDataModalOpen(true)}
         onToggleSound={handleToggleSound}
         onToggleMobileSidebar={() => setIsMobileSidebarOpen((prev) => !prev)}
+        onOpenProfile={() => setIsProfileModalOpen(true)}
+        onLogout={handleRequestLogout}
         isSidebarOpen={isMobileSidebarOpen}
       />
 
@@ -652,6 +718,9 @@ export default function App() {
             setIsMobileSidebarOpen(false);
           }}
           data={data}
+          currentUser={currentUser}
+          onOpenProfile={() => setIsProfileModalOpen(true)}
+          onLogout={handleRequestLogout}
           isOpenMobile={isMobileSidebarOpen}
           onCloseMobile={() => setIsMobileSidebarOpen(false)}
         />
@@ -686,6 +755,7 @@ export default function App() {
         isOpen={isDataModalOpen}
         onClose={() => setIsDataModalOpen(false)}
         data={data}
+        currentUser={currentUser}
         onUpdateData={(newData) => {
           setData(newData);
           notify('success', 'Đã cập nhật dữ liệu', 'Dữ liệu mới đã được áp dụng.');
@@ -701,6 +771,16 @@ export default function App() {
         onClose={() => setIsSearchOpen(false)}
         data={data}
         onNavigate={handleNavigate}
+      />
+
+      {/* Teacher Profile & Password Modal */}
+      <UserProfileModal
+        isOpen={isProfileModalOpen}
+        onClose={() => setIsProfileModalOpen(false)}
+        currentUser={currentUser}
+        onUserUpdated={handleUserUpdated}
+        onRequestLogout={handleRequestLogout}
+        onNotify={notify}
       />
     </div>
   );

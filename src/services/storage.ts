@@ -16,14 +16,26 @@
 import { AppData } from '../types';
 import { initialAppData } from '../data/sampleData';
 
-const STORAGE_KEY = 'tro_ly_giao_vien_duong_thanh_tin_v1';
+const LEGACY_STORAGE_KEY = 'tro_ly_giao_vien_duong_thanh_tin_v1';
 
-export function loadAppData(): AppData {
+function getUserStorageKey(username?: string): string {
+  if (!username) return LEGACY_STORAGE_KEY;
+  return `tro_ly_giao_vien_data_${username.toLowerCase()}`;
+}
+
+export function loadAppData(username?: string): AppData {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
+    const key = getUserStorageKey(username);
+    let raw = localStorage.getItem(key);
+
+    // Nếu là tài khoản mặc định 'duongthanhtin' và chưa có key mới, thử đọc key cũ
+    if (!raw && username?.toLowerCase() === 'duongthanhtin') {
+      raw = localStorage.getItem(LEGACY_STORAGE_KEY);
+    }
+
     if (!raw) {
       // Nếu chưa có dữ liệu, khởi tạo bằng dữ liệu mẫu
-      saveAppData(initialAppData);
+      saveAppData(initialAppData, username);
       return initialAppData;
     }
     const parsed = JSON.parse(raw) as Partial<AppData>;
@@ -43,20 +55,21 @@ export function loadAppData(): AppData {
   }
 }
 
-export function saveAppData(data: AppData): void {
+export function saveAppData(data: AppData, username?: string): void {
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+    const key = getUserStorageKey(username);
+    localStorage.setItem(key, JSON.stringify(data));
   } catch (error) {
     console.error('Lỗi khi lưu dữ liệu vào localStorage:', error);
   }
 }
 
-export function resetAppData(): AppData {
-  saveAppData(initialAppData);
+export function resetAppData(username?: string): AppData {
+  saveAppData(initialAppData, username);
   return initialAppData;
 }
 
-export function clearAppData(): AppData {
+export function clearAppData(username?: string): AppData {
   const emptyData: AppData = {
     classes: [],
     students: [],
@@ -67,19 +80,20 @@ export function clearAppData(): AppData {
     activityLogs: [],
     soundEnabled: false,
   };
-  saveAppData(emptyData);
+  saveAppData(emptyData, username);
   return emptyData;
 }
 
-export function exportAppDataToFile(data: AppData): void {
+export function exportAppDataToFile(data: AppData, teacherName?: string): void {
   const jsonStr = JSON.stringify(data, null, 2);
   const blob = new Blob([jsonStr], { type: 'application/json;charset=utf-8;' });
   const url = URL.createObjectURL(blob);
   const link = document.createElement('a');
   const now = new Date();
   const dateStr = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}`;
+  const safeName = teacherName ? teacherName.replace(/[^a-zA-Z0-9_\p{L}]/gu, '_') : 'ThayDuongThanhTin';
   link.href = url;
-  link.download = `DuLieu_TroLy_ThayDuongThanhTin_${dateStr}.json`;
+  link.download = `DuLieu_TroLy_${safeName}_${dateStr}.json`;
   document.body.appendChild(link);
   link.click();
   document.body.removeChild(link);

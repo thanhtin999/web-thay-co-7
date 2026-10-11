@@ -73,6 +73,21 @@ export interface StudentComment {
   note?: string; // Ghi chú thêm
 }
 
+export interface UserAccount {
+  id: string;
+  username: string; // Tên đăng nhập (duy nhất)
+  passwordHash: string; // Mật khẩu đã mã hóa
+  fullName: string; // Họ và tên giáo viên (e.g., 'Thầy Dương Thành Tín')
+  role?: string; // Vai trò (e.g., 'Giáo viên bộ môn')
+  subject?: string; // Môn giảng dạy (e.g., 'Ngữ văn')
+  school?: string; // Đơn vị công tác (e.g., 'THCS Phan Bội Châu')
+  email?: string;
+  phone?: string;
+  avatarColor?: string; // Màu avatar
+  createdAt: string;
+  lastLoginAt?: string;
+}
+
 export interface ActivityLog {
   id: string;
   timestamp: string; // ISO string

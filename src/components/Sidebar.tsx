@@ -9,14 +9,20 @@ import {
   TrendingUp,
   MessageSquareQuote,
   BarChart3,
-  X
+  X,
+  Settings,
+  LogOut
 } from 'lucide-react';
-import { NavTab, AppData } from '../types';
+import { NavTab, AppData, UserAccount } from '../types';
+import { getAvatarInitials } from '../services/auth';
 
 interface SidebarProps {
   currentTab: NavTab;
   onSelectTab: (tab: NavTab) => void;
   data: AppData;
+  currentUser: UserAccount | null;
+  onOpenProfile: () => void;
+  onLogout: () => void;
   isOpenMobile: boolean;
   onCloseMobile: () => void;
 }
@@ -25,12 +31,20 @@ export const Sidebar: React.FC<SidebarProps> = ({
   currentTab,
   onSelectTab,
   data,
+  currentUser,
+  onOpenProfile,
+  onLogout,
   isOpenMobile,
   onCloseMobile,
 }) => {
   // Quick dynamic counts for badges
   const pendingTasksCount = data.tasks.filter((t) => t.status !== 'Đã hoàn thành').length;
   const needAttentionCount = data.students.filter((s) => s.needAttention).length;
+
+  const displayName = currentUser?.fullName || 'Thầy Dương Thành Tín';
+  const displaySubject = currentUser?.subject || 'Ngữ văn';
+  const displaySchool = currentUser?.school || 'THCS Phan Bội Châu';
+  const initials = getAvatarInitials(displayName);
 
   const navItems: { id: NavTab; label: string; icon: React.ElementType; badge?: string | number; badgeColor?: string }[] = [
     { id: 'overview', label: '1. Tổng quan', icon: LayoutDashboard },
@@ -139,14 +153,39 @@ export const Sidebar: React.FC<SidebarProps> = ({
         </div>
 
         {/* Bottom Profile Info Box */}
-        <div className="p-4 border-t border-slate-100 bg-slate-50/70">
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-blue-100 text-blue-800 font-bold text-sm flex items-center justify-center shrink-0 border border-blue-200">
-              DT
+        <div className="p-3.5 border-t border-slate-100 bg-slate-50/70">
+          <div className="flex items-center justify-between gap-2">
+            <div
+              className="flex items-center gap-2.5 min-w-0 cursor-pointer hover:opacity-80 transition-opacity"
+              onClick={onOpenProfile}
+              title="Nhấn để xem thông tin tài khoản"
+            >
+              <div className="w-9 h-9 rounded-xl bg-linear-to-br from-blue-600 to-indigo-700 text-white font-extrabold text-xs flex items-center justify-center shrink-0 shadow-xs">
+                {initials}
+              </div>
+              <div className="min-w-0">
+                <p className="text-xs font-bold text-slate-800 truncate">{displayName}</p>
+                <p className="text-[11px] text-slate-500 truncate">{displaySubject} • {displaySchool}</p>
+              </div>
             </div>
-            <div className="min-w-0">
-              <p className="text-xs font-bold text-slate-800 truncate">Thầy Dương Thành Tín</p>
-              <p className="text-[11px] text-slate-500 truncate">Ngữ văn • THCS Phan Bội Châu</p>
+
+            <div className="flex items-center gap-1 shrink-0">
+              <button
+                type="button"
+                onClick={onOpenProfile}
+                className="p-1.5 rounded-lg text-slate-500 hover:text-blue-600 hover:bg-blue-50 transition-colors"
+                title="Cài đặt tài khoản"
+              >
+                <Settings className="w-4 h-4" />
+              </button>
+              <button
+                type="button"
+                onClick={onLogout}
+                className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors"
+                title="Đăng xuất"
+              >
+                <LogOut className="w-4 h-4" />
+              </button>
             </div>
           </div>
         </div>
